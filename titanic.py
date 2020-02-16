@@ -161,7 +161,7 @@ params = [
     {'n_neighbors': [i for i in range(1, 11)]}
     ]
 
-# ランダムサーチでF値の高いパラメータを探索
+# ランダムサーチで正解率が最も高いモデルとそのパラメータを探索
 for model, param in zip(models, params):
     clf = RandomizedSearchCV(model, param)
     clf.fit(train_X, train_y)
