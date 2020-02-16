@@ -1,5 +1,13 @@
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import RandomizedSearchCV
+import scipy.stats
 
 # 教育用、検証用データの読み込み
 train_df = pd.read_csv('./8010_titanic_data/train.csv')
@@ -117,4 +125,59 @@ for dataset in combine:
 # 教育用データの'FareBand'カラムを削除
 train_df = train_df.drop(['FareBand'], axis=1)
 combine = [train_df, test_df]
-    
+
+# 教育用データを説明変数と目的変数に分けて格納する
+train_y = train_df['Survived']
+train_X = train_df.drop(['Survived'], axis=1)
+test_df = test_df.drop(['PassengerId'], axis=1)
+#print(train_X.head())
+#print(train_y.head())
+#print()
+#print(test_df.head())
+
+
+# MAXの正解率におけるモデル名とパラメータの格納先を定義
+max_score = 0
+score_list = []
+best_model = None
+best_param = None
+
+# ランダムサーチする機械学習モデルとそのパラメータを設定
+models = [LogisticRegression(), LinearSVC(), SVC(), DecisionTreeClassifier(), RandomForestClassifier(), KNeighborsClassifier()]
+params = [
+    {'C': [10**i for i in range(-5, 5)], 
+    'random_state': scipy.stats.randint(1, 101)}, 
+    {'C': [10**i for i in range(-5, 5)], 
+    'multi_class': ['ovr', 'crammer_singer'], 
+    'random_state': scipy.stats.randint(1, 101)}, 
+    {'C': [10**i for i in range(-5, 5)], 
+    'kernel': ['linear', 'rbf', 'poly', 'sigmoid'], 
+    'decision_function_shape': ['ovo', 'ovr'], 
+    'random_state': scipy.stats.randint(1, 101)}, 
+    {'max_depth': scipy.stats.randint(1, 11), 
+    'random_state': scipy.stats.randint(1, 101)}, 
+    {'max_depth': scipy.stats.randint(1, 11), 
+    'random_state': scipy.stats.randint(1, 101)}, 
+    {'n_neighbors': [i for i in range(1, 11)]}
+    ]
+
+# ランダムサーチでF値の高いパラメータを探索
+for model, param in zip(models, params):
+    clf = RandomizedSearchCV(model, param)
+    clf.fit(train_X, train_y)
+    pred_df = clf.predict(test_df)
+    score = clf.score(train_X, train_y)
+    score_list.append(score)
+
+    if max_score < score:
+        max_score = score
+        best_param = clf.best_params_
+        best_model = model.__class__.__name__
+        best_pred = pred_df
+
+# 教育用データにおいてMAXの正解率を出す学習モデルを表示
+print('学習モデル:{}, \nパラメータ:{}'.format(best_model, best_param))
+print('MAX_Accuracy:', round(max_score*100, 2))
+
+for model, score in zip(models, score_list):
+    print('{}: {}%'.format(model.__class__.__name__, round(score*100, 2)))
